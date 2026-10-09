@@ -1,0 +1,468 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ethik's Smart Planner</title>
+
+<style>
+:root {
+  --bg: #080d18;
+  --panel: #111a2b;
+  --blue: #3b82f6;
+  --text: #edf4ff;
+  --muted: #9aabc5;
+  --border: #283750;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+}
+header {
+  padding: 24px 5%;
+  background: #0c1424;
+  border-bottom: 1px solid var(--border);
+}
+header h1 { margin: 0; color: #65a9ff; }
+header p { color: var(--muted); }
+main { max-width: 1050px; margin: auto; padding: 24px 18px; }
+.clock, .card, .stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.clock {
+  padding: 24px;
+  margin-bottom: 20px;
+  background: linear-gradient(120deg, #14284a, #111a2b);
+}
+#time { font-size: clamp(30px, 5vw, 44px); font-weight: bold; margin: 10px 0; }
+.muted { color: var(--muted); }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat { padding: 16px; }
+.stat strong { display: block; font-size: 27px; margin-top: 8px; }
+.layout {
+  display: grid;
+  grid-template-columns: minmax(250px, .85fr) minmax(0, 1.4fr);
+  gap: 20px;
+  align-items: start;
+}
+.card { padding: 21px; min-width: 0; }
+h2 { margin-top: 0; font-size: 20px; }
+label { display: block; margin: 15px 0 7px; font-size: 14px; }
+input, textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #0b1322;
+  color: var(--text);
+  font: inherit;
+}
+textarea { resize: vertical; min-height: 75px; }
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.primary { background: var(--blue); color: white; }
+.primary:hover { background: #2563eb; }
+.full { width: 100%; margin-top: 18px; }
+.secondary { background: #17243a; color: white; border: 1px solid var(--border); }
+.danger { background: #48202c; color: #ffc0cc; }
+.success { background: #123d34; color: #86efc3; }
+.task {
+  padding: 15px;
+  background: #0c1525;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+.task.done { opacity: .65; }
+.task.done .task-title { text-decoration: line-through; }
+.task-title { font-weight: bold; margin: 0 0 8px; }
+.task-time { font-size: 13px; color: #80b7ff; margin-bottom: 9px; }
+.task-description { color: var(--muted); white-space: pre-wrap; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+.actions button { font-size: 12px; }
+.empty { text-align: center; padding: 25px 8px; color: var(--muted); }
+.note { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #000c;
+}
+.alarm-box {
+  width: 100%;
+  max-width: 430px;
+  padding: 30px;
+  text-align: center;
+  border: 1px solid var(--blue);
+  border-radius: 18px;
+  background: #111a2b;
+}
+.bell { font-size: 54px; animation: ring .5s infinite alternate; }
+@keyframes ring {
+  from { transform: rotate(-12deg); }
+  to { transform: rotate(12deg); }
+}
+footer { text-align: center; color: var(--muted); padding: 25px; }
+@media (max-width: 700px) {
+  .layout { grid-template-columns: 1fr; }
+  .stats { gap: 7px; }
+  .stat { padding: 11px; }
+  .stat strong { font-size: 22px; }
+}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>🔔 Ethik's Smart Planner</h1>
+  <p>Your tasks, your time, your success.</p>
+</header>
+
+<main>
+  <section class="clock">
+    <div class="muted">YOUR LOCAL TIME</div>
+    <div id="time">Loading...</div>
+    <div id="today"></div>
+    <p class="muted">Stay organized. Never forget a task.</p>
+  </section>
+
+  <section class="stats">
+    <div class="stat">Total Tasks<strong id="total">0</strong></div>
+    <div class="stat">Pending<strong id="pending">0</strong></div>
+    <div class="stat">Completed<strong id="completed">0</strong></div>
+  </section>
+
+  <section class="layout">
+    <div class="card">
+      <h2>➕ Add a Reminder</h2>
+      <form id="taskForm">
+        <label for="title">Task or Event Name *</label>
+        <input id="title" maxlength="120" required placeholder="e.g. Study Mathematics">
+
+        <label for="when">Date and Time *</label>
+        <input id="when" type="datetime-local" required>
+
+        <label for="description">Description (optional)</label>
+        <textarea id="description" maxlength="1000" placeholder="Extra details..."></textarea>
+
+        <button class="primary full" type="submit">Save Reminder</button>
+      </form>
+      <p class="note">🔊 Click the page to enable sound. Keep this page open for your alarms.</p>
+    </div>
+
+    <div class="card">
+      <h2>📅 My Reminders</h2>
+      <label for="filter">Filter by date</label>
+      <input type="date" id="filter">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="secondary" id="allBtn" type="button">Show All</button>
+        <button class="secondary" id="todayBtn" type="button">Today</button>
+      </div>
+      <div id="list" aria-live="polite"></div>
+    </div>
+  </section>
+</main>
+
+<footer>Made for personal productivity · Ethik's Smart Planner</footer>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="alarm-box">
+    <div class="bell">🔔</div>
+    <h2>Time for your task!</h2>
+    <p id="alarmTitle" style="font-size:21px"></p>
+    <p id="alarmDescription" class="muted"></p>
+    <button class="primary full" id="stopBtn">Stop Alarm</button>
+  </div>
+</div>
+
+<script>
+const KEY = "ethikSmartPlannerTasksV2";
+
+function loadTasks() {
+  try {
+    const data = JSON.parse(localStorage.getItem(KEY) || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+let tasks = loadTasks();
+let audio = null;
+let soundTimer = null;
+let activeAlarm = null;
+let filterMode = "all";
+
+function saveTasks() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(tasks));
+    return true;
+  } catch {
+    alert("Could not save tasks. Check your browser storage.");
+    return false;
+  }
+}
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById("time").textContent =
+    now.toLocaleTimeString([], {
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+  document.getElementById("today").textContent =
+    now.toLocaleDateString([], {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+
+async function enableSound() {
+  try {
+    const AudioClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioClass) return false;
+    if (!audio) audio = new AudioClass();
+    if (audio.state === "suspended") await audio.resume();
+    return audio.state === "running";
+  } catch {
+    return false;
+  }
+}
+
+document.addEventListener("click", function firstClick() {
+  enableSound();
+}, { once: true });
+
+function beep() {
+  if (!audio || audio.state !== "running") return;
+
+  try {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.22, audio.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.35);
+
+    oscillator.connect(gain);
+    gain.connect(audio.destination);
+    oscillator.start();
+    oscillator.stop(audio.currentTime + 0.36);
+  } catch (error) {
+    console.log("Unable to play sound.", error);
+  }
+}
+
+function dateKey(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+document.getElementById("taskForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  await enableSound();
+
+  const title = document.getElementById("title").value.trim();
+  const when = document.getElementById("when").value;
+  const description = document.getElementById("description").value.trim();
+  const date = new Date(when);
+
+  if (!title || !when || Number.isNaN(date.getTime())) {
+    alert("Enter a valid task name and date/time.");
+    return;
+  }
+
+  if (date.getTime() <= Date.now()) {
+    alert("Please choose a future date and time.");
+    return;
+  }
+
+  const task = {
+    id: window.crypto?.randomUUID
+      ? crypto.randomUUID()
+      : String(Date.now()) + Math.random(),
+    title,
+    time: date.toISOString(),
+    description,
+    completed: false,
+    notified: false
+  };
+
+  tasks.push(task);
+
+  if (!saveTasks()) {
+    tasks = tasks.filter(item => item.id !== task.id);
+    return;
+  }
+
+  event.target.reset();
+  renderTasks();
+});
+
+function renderTasks() {
+  const list = document.getElementById("list");
+  const selectedDate = document.getElementById("filter").value;
+
+  document.getElementById("total").textContent = tasks.length;
+  document.getElementById("pending").textContent =
+    tasks.filter(task => !task.completed).length;
+  document.getElementById("completed").textContent =
+    tasks.filter(task => task.completed).length;
+
+  let visible = [...tasks];
+
+  if (filterMode === "today") {
+    const today = dateKey(new Date());
+    visible = visible.filter(task => dateKey(new Date(task.time)) === today);
+  } else if (selectedDate) {
+    visible = visible.filter(task => dateKey(new Date(task.time)) === selectedDate);
+  }
+
+  visible.sort((a, b) => new Date(a.time) - new Date(b.time));
+  list.replaceChildren();
+
+  if (!visible.length) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = tasks.length
+      ? "No reminders found for this date."
+      : "No reminders yet. Add your first task!";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const task of visible) {
+    const article = document.createElement("article");
+    article.className = "task" + (task.completed ? " done" : "");
+
+    const heading = document.createElement("p");
+    heading.className = "task-title";
+    heading.textContent = task.title;
+
+    const time = document.createElement("div");
+    time.className = "task-time";
+    time.textContent = new Date(task.time).toLocaleString([], {
+      dateStyle: "medium", timeStyle: "short"
+    });
+
+    const description = document.createElement("div");
+    description.className = "task-description";
+    description.textContent = task.description;
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+
+    const complete = document.createElement("button");
+    complete.className = "success";
+    complete.textContent = task.completed ? "Mark Pending" : "✓ Complete";
+    complete.addEventListener("click", () => {
+      task.completed = !task.completed;
+      saveTasks();
+      renderTasks();
+    });
+
+    const remove = document.createElement("button");
+    remove.className = "danger";
+    remove.textContent = "Delete";
+    remove.addEventListener("click", () => {
+      if (!confirm("Delete this reminder?")) return;
+
+      if (activeAlarm === task.id) stopAlarm();
+      tasks = tasks.filter(item => item.id !== task.id);
+      saveTasks();
+      renderTasks();
+    });
+
+    actions.append(complete, remove);
+    article.append(heading, time, description, actions);
+    list.appendChild(article);
+  }
+}
+
+document.getElementById("filter").addEventListener("change", () => {
+  filterMode = "all";
+  renderTasks();
+});
+
+document.getElementById("allBtn").addEventListener("click", () => {
+  filterMode = "all";
+  document.getElementById("filter").value = "";
+  renderTasks();
+});
+
+document.getElementById("todayBtn").addEventListener("click", () => {
+  filterMode = "today";
+  document.getElementById("filter").value = "";
+  renderTasks();
+});
+
+function checkReminders() {
+  if (activeAlarm) return;
+
+  const now = Date.now();
+  const due = tasks.find(task =>
+    !task.completed &&
+    !task.notified &&
+    new Date(task.time).getTime() <= now
+  );
+
+  if (!due) return;
+
+  due.notified = true;
+  if (!saveTasks()) due.notified = false;
+
+  activeAlarm = due.id;
+  document.getElementById("alarmTitle").textContent = due.title;
+  document.getElementById("alarmDescription").textContent =
+    due.description || "Your scheduled reminder is due now.";
+
+  document.getElementById("overlay").style.display = "flex";
+  beep();
+  soundTimer = setInterval(beep, 850);
+  renderTasks();
+}
+
+function stopAlarm() {
+  if (soundTimer) clearInterval(soundTimer);
+  soundTimer = null;
+  activeAlarm = null;
+  document.getElementById("overlay").style.display = "none";
+  renderTasks();
+  setTimeout(checkReminders, 250);
+}
+
+document.getElementById("stopBtn").addEventListener("click", stopAlarm);
+
+renderTasks();
+checkReminders();
+setInterval(checkReminders, 1000);
+</script>
+</body>
+</html>
